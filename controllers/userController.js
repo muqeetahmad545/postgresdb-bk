@@ -1,51 +1,75 @@
-const pool = require('../config/db');
+const db = require('../model');
+const { comparePasswords, hashPassword } = require('../utils/pass'); 
+const generateToken = require('../utils/token');
+const User = db.User;
 
-// Get all users
 const getUsers = async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, name, email FROM users');
-    res.json(result.rows);
+    const users = await User.findAll();
+    res.json({
+      message: 'Get All Users successfully',
+      content: users,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Register user
 const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const user= req.body;
   try {
-    const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
+    const existing = await User.findOne({ where: { email:user.email } });
+    if (existing) {
       return res.status(400).json({ message: 'User already exists' });
     }
+    const hashedPassword = await hashPassword(user.password);
 
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email',
-      [name, email, password]
-    );
-    res.status(201).json(result.rows[0]);
+    const token = generateToken(user);
+
+    const newUser = await User.create({
+      name: user.name,
+      email: user.email,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      message: 'User created successfully',
+      content: newUser,
+      access_token:token
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Login user
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
+  const { email, password } = req.body;  
 
-    if (result.rows.length === 0) {
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    const isPasswordValid = await comparePasswords(password, user.password);
 
-    const user = result.rows[0];
-    res.json({ id: user.id, name: user.name, email: user.email });
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid Credentials' });
+    }
+    const token = generateToken(user);
+    res.json({
+      message: 'User logged in successfully',
+      content: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      access_token: token,  
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 module.exports = {
   getUsers,
   registerUser,
