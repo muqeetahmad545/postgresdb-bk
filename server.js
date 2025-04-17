@@ -2,7 +2,7 @@ const express = require('express');
 require('dotenv').config();
 const app = express();
 const { sequelize } = require('./model');
-const userRoutes = require('./routes/userRoutes');
+const userRoutes = require('./routes/authRoutes');
 const { API_BASE } = require('./constants/pathconstansts');
 
 app.use(express.json());
