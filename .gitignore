@@ -1,0 +1,11 @@
+npm-debug.log
+*.sqlite
+/.idea/
+/node_modules/
+yarn-error.log
+.enve
+/src/.DS_Store
+.DS_Store
+.secret
+postman
+**/pdfTemplate-tem.html
